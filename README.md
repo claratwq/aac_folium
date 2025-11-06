@@ -1,5 +1,3 @@
-# taxi-availability
-
 ---
 title: taxi-availability
 emoji: 🚀
