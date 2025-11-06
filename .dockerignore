@@ -1,0 +1,14 @@
+# .dockerignore
+# Files and folders to ignore when building the image
+
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.venv
+.vscode
+.git
+.gitignore
+.DS_Store
+*.log
+venv/
