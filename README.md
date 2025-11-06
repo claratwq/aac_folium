@@ -6,5 +6,5 @@ emoji: 🚀
 colorFrom: purple
 colorTo: purple
 sdk: docker
-pinned: false
+pinned: False
 
