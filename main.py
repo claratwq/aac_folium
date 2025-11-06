@@ -142,4 +142,4 @@ def update_map(n_clicks, day, time_value, location, current_center, current_zoom
 
 # --- Run server ---
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8050, debug=True)
+    app.run(host="0.0.0.0", port=7860, debug=True)
