@@ -1,0 +1,143 @@
+import requests
+import numpy
+import pandas as pd
+from math import radians, sin, cos, sqrt, atan2
+import json
+import datetime
+
+headers = {"Authorization": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo1ODM4LCJmb3JldmVyIjpmYWxzZSwiaXNzIjoiT25lTWFwIiwiaWF0IjoxNzYzMTMzMzg5LCJuYmYiOjE3NjMxMzMzODksImV4cCI6MTc2MzM5MjU4OSwianRpIjoiZWJkMmQyOTEtNzVlYS00Zjc1LWE0YTgtZDY4ZDU0Mzc0YjdkIn0.BK-F3sHEJ701hM-OrV5ekIS_cixetWg8WXudnxQkoeXwG9-POphJhMyL-JqeANpTf1py-zQzoa-kCljxOcSd3hWBrDxlqauzeABHTS4FHQhsLhUOVeofNn0sYYdk19tuKk4Ctq3BHUOGJylLJVPw3FY2UXzUTxaGDcVhadr9D78XA822XuuwjPPFmeiabrRuIu8L_709Wacy3LZxman0A9tJmVe46lNH-KdGbF30kKvPicntOIvhH-4PQ81ofaNYNbuaMZXJumyGqvUK-VmoNS7Qt5yZ712VgSMqSbjHOXvoW2CdrDKt07Y4x2Jhdj4Br1AYplyq7QT0zYttoa7o_Q"}
+# =========================
+# OneMap Functions
+# =========================
+
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371
+    dlat, dlon = radians(lat2 - lat1), radians(lon2 - lon1)
+    a = sin(dlat/2)**2 + cos(radians(lat1))*cos(radians(lat2))*sin(dlon/2)**2
+    return R * 2 * atan2(sqrt(a), sqrt(1 - a))
+
+
+
+def get_coordinates_from_postal(postal_code):
+    """Get lat/lon from a Singapore postal code using OneMap."""
+    url = f"https://www.onemap.gov.sg/api/common/elastic/search?searchVal={postal_code}&returnGeom=Y&getAddrDetails=Y&pageNum=1"
+    r = requests.get(url, headers = headers).json()
+    if r["found"] > 0:
+        lat = float(r["results"][0]["LATITUDE"])
+        lon = float(r["results"][0]["LONGITUDE"])
+        addr = r["results"][0]["ADDRESS"]
+        return lat, lon, addr
+    else:
+        raise ValueError("Postal code not found in OneMap.")
+
+def route_instructions(legs):
+    steps = []
+    
+    for leg in legs:
+        mode = leg.get("mode", "").upper()
+
+        # WALK LEG
+        if mode == "WALK":
+            dist = leg.get("distance", 0)
+            from_name = leg.get("from", {}).get("name", "starting point")
+            to_name = leg.get("to", {}).get("name", "next point")
+
+            steps.append(f"Walk {dist} metres from {from_name} to {to_name}.")
+
+        # BUS LEG
+        elif mode == "BUS":
+            route = leg.get("route", "")
+
+            # OneMap often returns numStops = 0 → so we calculate it manually
+            intermediate = leg.get("intermediateStops", [])
+            num_stops = len(intermediate)
+
+            from_stop = leg.get("from", {}).get("name", "the bus stop")
+            to_stop = leg.get("to", {}).get("name", "the next stop")
+
+            steps.append(
+                f"Take Bus {route} from {from_stop} and ride for {num_stops} stops to {to_stop}."
+            )
+
+        # MRT / SUBWAY
+        elif mode in ["SUBWAY", "TRAIN"]:
+            route = leg.get("route", "")
+            num_stops = leg.get("numStops", 0)
+            from_stop = leg.get("from", {}).get("name", "the station")
+            to_stop = leg.get("to", {}).get("name", "your stop")
+
+            steps.append(
+                f"Take the {route} line from {from_stop} for {num_stops} stops to {to_stop}."
+            )
+
+        # UNKNOWN MODE
+        else:
+            steps.append("Continue as directed.")
+    
+    return steps
+
+
+def get_route(start, end, routetype="pt", mode = 'TRANSIT'):
+    """Get route using OneMap Routing API (walk or transit)."""
+    print('get_route', start, end, routetype)
+    
+    now = datetime.datetime.now()
+    date_format = now.strftime('%m-%d-%Y')
+    time_raw = now.strftime('%H:%M:%S')
+    
+    url = (
+        f"https://www.onemap.gov.sg/api/public/routingsvc/route?"
+        f"start={start[0]},{start[1]}&end={end[0]},{end[1]}"
+        f"&date={date_format}&time={time_raw}"
+        f"&routeType={routetype}&mode={mode}"
+    )
+    r = requests.get(url, headers = headers)
+    if r.status_code != 200:
+        print (r.status_code)
+        return None
+    
+    data = r.json()
+    
+    plan = data.get("plan")
+    #print(json.dumps(plan))
+    if not plan or not plan.get("itineraries"):
+        return None
+    itinerary = plan["itineraries"][0]  # Take the first suggested route
+    legs = itinerary.get("legs", [])
+    coords = []
+    for leg in legs:
+        poly = leg.get("legGeometry", {}).get("points")
+        if poly:
+            coords.extend(decode_polyline(poly))
+    #print (json.dumps(itinerary, indent = 2))
+    instructions = route_instructions(legs)
+    return {
+        "coords": coords,
+        "time": itinerary.get("duration", 0),
+        "Walk distance": itinerary.get("walkDistance", 0),
+        "Instructions": instructions
+    }
+
+
+def decode_polyline(polyline_str):
+    """Decode OneMap encoded polyline to list of [lat, lon]."""
+    index, lat, lng, coordinates = 0, 0, 0, []
+    changes = {"lat": 0, "lng": 0}
+    while index < len(polyline_str):
+        for unit in ["lat", "lng"]:
+            shift, result = 0, 0
+            while True:
+                b = ord(polyline_str[index]) - 63
+                index += 1
+                result |= (b & 0x1F) << shift
+                shift += 5
+                if b < 0x20:
+                    break
+            if (result & 1):
+                changes[unit] = ~(result >> 1)
+            else:
+                changes[unit] = (result >> 1)
+        lat += changes["lat"]
+        lng += changes["lng"]
+        coordinates.append([lat / 1e5, lng / 1e5])
+    return coordinates

@@ -1,11 +1,5 @@
-streamlit
-plotly
-pandas
-numpy
-dash
-flask
 requests
-folium
-datetime
-geopy
-dash_leaflet
+numpy
+pandas
+dash
+dash-leaflet
