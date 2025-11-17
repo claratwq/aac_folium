@@ -28,26 +28,35 @@ all_aac_markers = [
 app = Dash(__name__)
 
 app.layout = html.Div([
-    html.H3("Find Nearest Active Ageing Centres"),
+    html.H3("Find Nearest Active Ageing Centres", style={"text-align": "center"}),
+
     html.Div([
-        dcc.Input(id="postal-input", type="text", placeholder="Enter postal code..."),
-        html.Button("Find AACs", id="submit-btn")
-    ]),
-    dl.Map([
-        dl.TileLayer(),
-        dl.LayerGroup(id="aac-layer"),
-        dl.LayerGroup(id="route-layer"),
-        dl.LayerGroup(id="user-marker")
-    ], 
-        id="map", 
-        style={'width': '100%', 'height': '60vh'},
-        zoom=12, 
-        center=[1.3521, 103.8198],
-        #bounds = [[1.20, 103.60], [1.48, 104.05]],
-        #boundsOptions={"padding": [0, 0]} 
-    ),
-    html.Div(id="output-info")
-])
+        dcc.Input(
+            id="postal-input",
+            type="text",
+            placeholder="Enter postal code",
+            style={"flex": "1", "padding": "8px", "margin-right": "5px", "min-width": "0"}
+        ),
+        html.Button("Find AACs", id="submit-btn", style={"padding": "8px"})
+    ], style={"display": "flex", "margin": "10px"}),
+
+    html.Div([
+        dl.Map([
+            dl.TileLayer(),
+            dl.LayerGroup(id="aac-layer"),
+            dl.LayerGroup(id="route-layer"),
+            dl.LayerGroup(id="user-marker")
+        ],
+            id="map",
+            style={"width": "100%", "height": "50vh", "min-height": "300px"},  # map takes half viewport
+            zoom=12,
+            center=[1.3521, 103.8198]
+        )
+    ], style={"width": "100%", "max-width": "800px", "margin": "auto"}),
+
+    html.Div(id="output-info", style={"padding": "10px", "max-width": "800px", "margin": "auto"})
+], style={"overflowY": "auto", "height": "100vh"})  # allow scrolling on mobile
+
 # =========================
 # Call back
 # =========================
