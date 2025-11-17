@@ -1,166 +1,103 @@
-import dash
-from dash import Dash, html, dcc, Input, Output, State
-import dash_leaflet as dl
+from flask import Flask, render_template_string, request
+import folium
 import pandas as pd
-import requests
-
-from helper import get_token, haversine,get_coordinates_from_postal, get_route, decode_polyline
-
+from helper import get_token, haversine, get_coordinates_from_postal, get_route
 
 headers = get_token()
-print (headers)
-# =========================
-# Load AAC Data
-# =========================
 aac_df = pd.read_csv("AAC_locations.csv")
 
-all_aac_markers = [
-    dl.Marker(
-        position=[row["LATITUDE"], row["LONGITUDE"]],
-        children=dl.Popup(row["SEARCHVAL"])
-    )
-    for _, row in aac_df.iterrows()
-]
+app = Flask(__name__)
 
-# =========================
-# Dash App
-# =========================
-app = Dash(__name__)
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Active Ageing Centres Finder</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {{ folium_css|safe }}
+    {{ folium_js|safe }}
+</head>
+<body>
+    <h3 style="text-align:center;">Find Nearest Active Ageing Centres</h3>
+    <form method="POST" style="text-align:center; margin:10px;">
+        <input type="text" name="postal" placeholder="Enter postal code" style="padding:8px; width:200px;">
+        <button type="submit" style="padding:8px;">Find AACs</button>
+    </form>
+    <div style="width: 100%; max-width: 800px; margin:auto;">
+        {{ map_html|safe }}
+    </div>
+    <div style="width: 100%; max-width: 800px; margin:auto; padding:10px;">
+        {% if info %}
+            {{ info|safe }}
+        {% endif %}
+    </div>
+</body>
+</html>
+"""
 
-app.layout = html.Div([
-    html.H3("Find Nearest Active Ageing Centres", style={"text-align": "center"}),
+@app.route("/", methods=["GET", "POST"])
+def index():
+    postal = request.form.get("postal")
+    sg_center = [1.3521, 103.8198]
+    folium_map = folium.Map(location=sg_center, zoom_start=None)
+    info_html = ""
+    all_coords = []
 
-    html.Div([
-        dcc.Input(
-            id="postal-input",
-            type="text",
-            placeholder="Enter postal code",
-            style={"flex": "1", "padding": "8px", "margin-right": "5px", "min-width": "0"}
-        ),
-        html.Button("Find AACs", id="submit-btn", style={"padding": "8px"})
-    ], style={"display": "flex", "margin": "10px"}),
-
-    html.Div([
-        dl.Map([
-            dl.TileLayer(),
-            dl.LayerGroup(id="aac-layer"),
-            dl.LayerGroup(id="route-layer"),
-            dl.LayerGroup(id="user-marker")
-        ],
-            id="map",
-            style={"width": "100%", "height": "50vh", "min-height": "300px"},  # map takes half viewport
-            zoom=12,
-            center=[1.3521, 103.8198]
-        )
-    ], style={"width": "100%", "max-width": "800px", "margin": "auto"}),
-
-    html.Div(id="output-info", style={"padding": "10px", "max-width": "800px", "margin": "auto"})
-], style={"overflowY": "auto", "height": "100vh"})  # allow scrolling on mobile
-
-# =========================
-# Call back
-# =========================
-@app.callback(
-    Output("map", "zoom"),
-    Input("submit-btn", "n_clicks"),
-    State("postal-input", "value"),
-    prevent_initial_call=True
-)
-def update_zoom(n_clicks, postal):
-    default_zoom = 12
-    target_zoom = 15.0001  # tiny bump ensures Leaflet treats zoom as a new view
-    if not n_clicks or not postal or postal.strip() == "":
-        return default_zoom
-    return target_zoom
-
-@app.callback(
-    [Output("aac-layer", "children"),
-     Output("route-layer", "children"),
-     Output("user-marker", "children"),
-     Output("output-info", "children"),
-     Output("map", "center")],
-     Input("submit-btn", "n_clicks"),
-     State("postal-input", "value")
-)
-def find_nearest_aac(n_clicks, postal):
-    # Default SG bounds
-    #default_bounds = [[1.20, 103.60], [1.48, 104.05]]
-    default_center = [1.3521, 103.8198]
-    print('postal', postal)
-    # =========================
-    # 1️⃣ No click or empty postal → show all AACs
-    # =========================
-    if not n_clicks or not postal or postal.strip() == "":
-        return all_aac_markers, [], [], "", default_center
-
-    # =========================
-    # 2️⃣ Geocode postal code
-    # =========================
-    geo_url = f"https://www.onemap.gov.sg/api/common/elastic/search?searchVal={postal}&returnGeom=Y&getAddrDetails=Y&pageNum=1"
-    r = requests.get(geo_url, headers=headers).json()
-
-    if not r["results"]:
-        return all_aac_markers, [], [], "Postal code not found", default_center
-
-    user_lat = float(r["results"][0]["LATITUDE"])
-    user_lon = float(r["results"][0]["LONGITUDE"])
-    user_marker = [dl.Marker(position=[user_lat, user_lon], children=dl.Popup("You are here"))]
-    #center = [user_lat,user_lon]
-    # =========================
-    # 3️⃣ Find 3 nearest AACs
-    # =========================
-    aac_df["dist_km"] = aac_df.apply(lambda x: haversine(user_lat, user_lon, x["LATITUDE"], x["LONGITUDE"]), axis=1)
-    nearest = aac_df.nsmallest(3, "dist_km")
-    print('nearest', nearest)
-
-    colors = ["red", "blue", "green"]
-    route_lines, info_cards = [], []
-    all_coords = [(user_lat, user_lon)]
-
-    for i, (_, row) in enumerate(nearest.iterrows()):
-        route = get_route((user_lat, user_lon), (row["LATITUDE"], row["LONGITUDE"]))
-        if route:
-            all_coords += route["coords"]
-            route_lines.append(dl.Polyline(positions=route["coords"], color=colors[i], weight=4))
-            info_cards.append(html.Div([
-                html.B(row["SEARCHVAL"]), html.Br(),
-                f"Walk Distance: {route['Walk distance']/1000:.2f} km | Time: {route['time']/60:.1f} min",
-                html.Br(),
-                f"Directions: {route['Instructions']}"
-            ], style={"margin":"5px"}))
-
-    # Add nearest AAC markers
-    aac_markers = [
-        dl.Marker(position=[row["LATITUDE"], row["LONGITUDE"]],
-                  children=dl.Popup(f"{row['SEARCHVAL']} ({row['dist_km']:.2f} km away)"))
-        for _, row in nearest.iterrows()
-    ]
-
-    # =========================
-    # 4️⃣ Auto-fit map bounds
-    # =========================
-    valid_coords = [(lat, lon) for lat, lon in all_coords if lat is not None and lon is not None]
-    print('valid_coords', valid_coords)
-    if len(valid_coords) < 2:
-        #bounds = default_bounds
-        print('no valid coordinates')
+    if not postal:
+        # Show all AACs
+        for _, row in aac_df.iterrows():
+            folium.Marker(
+                location=[row["LATITUDE"], row["LONGITUDE"]],
+                popup=row["SEARCHVAL"]
+            ).add_to(folium_map)
+            all_coords.append([row["LATITUDE"], row["LONGITUDE"]])
     else:
-        all_coords = [(user_lat, user_lon)] + [(row["LATITUDE"], row["LONGITUDE"]) for _, row in nearest.iterrows()]
-        lats = [c[0] for c in all_coords]
-        lons = [c[1] for c in all_coords]
-        #bounds = [[min(lats), min(lons)], [max(lats), max(lons)]]
-        #print(all_coords)
-        center = [(min(lats)+max(lats))/2, (min(lons)+max(lons))/2]
+        try:
+            # User location
+            user_lat, user_lon, addr = get_coordinates_from_postal(postal)
+            folium.Marker(
+                location=[user_lat, user_lon],
+                popup="You are here",
+                icon=folium.Icon(color="orange")
+            ).add_to(folium_map)
+            all_coords.append([user_lat, user_lon])
 
-        # lats = [c[0] for c in valid_coords]
-        # lons = [c[1] for c in valid_coords]
-        # bounds = [[min(lats), min(lons)], [max(lats), max(lons)]]
-        #print('bounds ', bounds)
-        print('center', center)
-    # Combine all AACs if you want
-    return aac_markers, route_lines, user_marker, info_cards, center
+            # Find nearest 3 AACs
+            aac_df["dist_km"] = aac_df.apply(
+                lambda x: haversine(user_lat, user_lon, x["LATITUDE"], x["LONGITUDE"]),
+                axis=1
+            )
+            nearest = aac_df.nsmallest(3, "dist_km")
+            colors = ["red", "blue", "green"]
 
+            for i, (_, row) in enumerate(nearest.iterrows()):
+                route = get_route((user_lat, user_lon), (row["LATITUDE"], row["LONGITUDE"]))
+                if route and route["coords"]:
+                    folium.PolyLine(route["coords"], color=colors[i], weight=4).add_to(folium_map)
+                    all_coords.extend(route["coords"])
+                    info_html += f"<b>{row['SEARCHVAL']}</b><br>Walk Distance: {route['Walk distance']/1000:.2f} km | Time: {route['time']/60:.1f} min<br>Directions:<br>"
+                    for step in route["Instructions"]:
+                        info_html += f"- {step}<br>"
+
+                folium.Marker(
+                    location=[row["LATITUDE"], row["LONGITUDE"]],
+                    popup=f"{row['SEARCHVAL']} ({row['dist_km']:.2f} km away)",
+                    icon=folium.Icon(color=colors[i])
+                ).add_to(folium_map)
+                all_coords.append([row["LATITUDE"], row["LONGITUDE"]])
+
+            # Auto-fit map to all coordinates
+            if all_coords:
+                folium_map.fit_bounds(all_coords)
+
+        except Exception as e:
+            info_html = f"Error: {str(e)}"
+
+    map_html = folium_map._repr_html_()
+    folium_css = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>'
+    folium_js = '<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>'
+
+    return render_template_string(HTML_TEMPLATE, map_html=map_html, folium_css=folium_css, folium_js=folium_js, info=info_html)
 
 if __name__ == "__main__":
-    #app.run(debug = False)
-    app.run(host="0.0.0.0", port=7860, debug=True)
+    app.run(host="0.0.0.0", port=7860)

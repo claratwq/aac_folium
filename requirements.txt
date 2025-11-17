@@ -1,6 +1,6 @@
 requests
 numpy
 pandas
-dash
-dash-leaflet
+flask
 python-dotenv
+folium
