@@ -40,7 +40,7 @@ app.layout = html.Div([
         dl.LayerGroup(id="user-marker")
     ], 
         id="map", 
-        style={'width': '100%', 'height': '600px'},
+        style={'width': '100%', 'height': '60vh'},
         zoom=12, 
         center=[1.3521, 103.8198],
         #bounds = [[1.20, 103.60], [1.48, 104.05]],
