@@ -39,7 +39,7 @@ HTML_TEMPLATE = """
 def index():
     postal = request.form.get("postal")
     sg_center = [1.3521, 103.8198]
-    folium_map = folium.Map(location=sg_center, zoom_start=None)
+    folium_map = folium.Map(location=sg_center, zoom_start=10)
     info_html = ""
     all_coords = []
 
