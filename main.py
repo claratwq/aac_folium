@@ -4,11 +4,11 @@ import dash_leaflet as dl
 import pandas as pd
 import requests
 
-from helper import haversine,get_coordinates_from_postal, get_route, decode_polyline
-
-headers = {"Authorization": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo1ODM4LCJmb3JldmVyIjpmYWxzZSwiaXNzIjoiT25lTWFwIiwiaWF0IjoxNzYzMTMzMzg5LCJuYmYiOjE3NjMxMzMzODksImV4cCI6MTc2MzM5MjU4OSwianRpIjoiZWJkMmQyOTEtNzVlYS00Zjc1LWE0YTgtZDY4ZDU0Mzc0YjdkIn0.BK-F3sHEJ701hM-OrV5ekIS_cixetWg8WXudnxQkoeXwG9-POphJhMyL-JqeANpTf1py-zQzoa-kCljxOcSd3hWBrDxlqauzeABHTS4FHQhsLhUOVeofNn0sYYdk19tuKk4Ctq3BHUOGJylLJVPw3FY2UXzUTxaGDcVhadr9D78XA822XuuwjPPFmeiabrRuIu8L_709Wacy3LZxman0A9tJmVe46lNH-KdGbF30kKvPicntOIvhH-4PQ81ofaNYNbuaMZXJumyGqvUK-VmoNS7Qt5yZ712VgSMqSbjHOXvoW2CdrDKt07Y4x2Jhdj4Br1AYplyq7QT0zYttoa7o_Q"}
+from helper import get_token, haversine,get_coordinates_from_postal, get_route, decode_polyline
 
 
+headers = get_token()
+print (headers)
 # =========================
 # Load AAC Data
 # =========================
@@ -77,6 +77,7 @@ def find_nearest_aac(n_clicks, postal):
     # Default SG bounds
     #default_bounds = [[1.20, 103.60], [1.48, 104.05]]
     default_center = [1.3521, 103.8198]
+    print('postal', postal)
     # =========================
     # 1️⃣ No click or empty postal → show all AACs
     # =========================
@@ -101,6 +102,7 @@ def find_nearest_aac(n_clicks, postal):
     # =========================
     aac_df["dist_km"] = aac_df.apply(lambda x: haversine(user_lat, user_lon, x["LATITUDE"], x["LONGITUDE"]), axis=1)
     nearest = aac_df.nsmallest(3, "dist_km")
+    print('nearest', nearest)
 
     colors = ["red", "blue", "green"]
     route_lines, info_cards = [], []
@@ -129,7 +131,7 @@ def find_nearest_aac(n_clicks, postal):
     # 4️⃣ Auto-fit map bounds
     # =========================
     valid_coords = [(lat, lon) for lat, lon in all_coords if lat is not None and lon is not None]
-    print(valid_coords)
+    print('valid_coords', valid_coords)
     if len(valid_coords) < 2:
         #bounds = default_bounds
         print('no valid coordinates')
@@ -141,11 +143,11 @@ def find_nearest_aac(n_clicks, postal):
         #print(all_coords)
         center = [(min(lats)+max(lats))/2, (min(lons)+max(lons))/2]
 
-        lats = [c[0] for c in valid_coords]
-        lons = [c[1] for c in valid_coords]
-        bounds = [[min(lats), min(lons)], [max(lats), max(lons)]]
+        # lats = [c[0] for c in valid_coords]
+        # lons = [c[1] for c in valid_coords]
+        # bounds = [[min(lats), min(lons)], [max(lats), max(lons)]]
         #print('bounds ', bounds)
-        print(center)
+        print('center', center)
     # Combine all AACs if you want
     return aac_markers, route_lines, user_marker, info_cards, center
 

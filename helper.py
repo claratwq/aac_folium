@@ -3,7 +3,30 @@ import numpy
 import pandas as pd
 from math import radians, sin, cos, sqrt, atan2
 import json
-import datetime
+from datetime import datetime, timezone, timedelta
+import os
+from dotenv import load_dotenv
+            
+load_dotenv()
+
+url = "https://www.onemap.gov.sg/api/auth/post/getToken"
+            
+
+email = os.getenv('ONEMAP_EMAIL')
+password =  os.getenv('ONEMAP_EMAIL_PASSWORD')
+
+payload = {
+    "email": email,
+    "password": password
+}
+            
+response = requests.request("POST", url, json=payload)
+data = response.json()
+token = data.get("access_token")
+headers = {"Authorization": token}
+
+def get_token():
+    return headers
 
 headers = {"Authorization": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo1ODM4LCJmb3JldmVyIjpmYWxzZSwiaXNzIjoiT25lTWFwIiwiaWF0IjoxNzYzMTMzMzg5LCJuYmYiOjE3NjMxMzMzODksImV4cCI6MTc2MzM5MjU4OSwianRpIjoiZWJkMmQyOTEtNzVlYS00Zjc1LWE0YTgtZDY4ZDU0Mzc0YjdkIn0.BK-F3sHEJ701hM-OrV5ekIS_cixetWg8WXudnxQkoeXwG9-POphJhMyL-JqeANpTf1py-zQzoa-kCljxOcSd3hWBrDxlqauzeABHTS4FHQhsLhUOVeofNn0sYYdk19tuKk4Ctq3BHUOGJylLJVPw3FY2UXzUTxaGDcVhadr9D78XA822XuuwjPPFmeiabrRuIu8L_709Wacy3LZxman0A9tJmVe46lNH-KdGbF30kKvPicntOIvhH-4PQ81ofaNYNbuaMZXJumyGqvUK-VmoNS7Qt5yZ712VgSMqSbjHOXvoW2CdrDKt07Y4x2Jhdj4Br1AYplyq7QT0zYttoa7o_Q"}
 # =========================
@@ -80,8 +103,9 @@ def route_instructions(legs):
 def get_route(start, end, routetype="pt", mode = 'TRANSIT'):
     """Get route using OneMap Routing API (walk or transit)."""
     print('get_route', start, end, routetype)
-    
-    now = datetime.datetime.now()
+    sgt = timezone(timedelta(hours=8))
+    now = datetime.now(sgt)
+
     date_format = now.strftime('%m-%d-%Y')
     time_raw = now.strftime('%H:%M:%S')
     
@@ -91,9 +115,11 @@ def get_route(start, end, routetype="pt", mode = 'TRANSIT'):
         f"&date={date_format}&time={time_raw}"
         f"&routeType={routetype}&mode={mode}"
     )
+    
+    print('url', url)
     r = requests.get(url, headers = headers)
     if r.status_code != 200:
-        print (r.status_code)
+        print ('status code in getroute', r.status_code)
         return None
     
     data = r.json()

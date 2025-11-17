@@ -3,3 +3,4 @@ numpy
 pandas
 dash
 dash-leaflet
+python-dotenv
