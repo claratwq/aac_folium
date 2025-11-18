@@ -9,14 +9,16 @@ aac_df = pd.read_csv("AAC_locations.csv")
 
 app = Flask(__name__)
 
+    # {{ folium_css|safe }} under meta name
+    # {{ folium_js|safe }}
+
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
     <title>Active Ageing Centres Finder</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    {{ folium_css|safe }}
-    {{ folium_js|safe }}
+
 </head>
 <body>
     <h3 style="text-align:center;">Find Nearest Active Ageing Centres</h3>
@@ -24,13 +26,11 @@ HTML_TEMPLATE = """
         <input type="text" name="postal" placeholder="Enter postal code" style="padding:8px; width:200px;">
         <button type="submit" style="padding:8px;">Find AACs</button>
     </form>
-    <div style="width: 100%; max-width: 800px; margin:auto;">
+    <div style="width: 100%; max-width: 800px; margin:auto; overflow:hidden;">
         {{ map_html|safe }}
     </div>
-    <div style="width: 100%; max-width: 800px; margin:auto; padding:10px;">
-        {% if info %}
-            {{ info|safe }}
-        {% endif %}
+    <div style="max-height:200px; overflow-y:auto;">
+        {{ info|safe }}
     </div>
 </body>
 </html>
