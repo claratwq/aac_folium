@@ -4,6 +4,7 @@ import pandas as pd
 from helper import get_token, haversine, get_coordinates_from_postal, get_route
 
 headers = get_token()
+print (headers)
 aac_df = pd.read_csv("AAC_locations.csv")
 
 app = Flask(__name__)

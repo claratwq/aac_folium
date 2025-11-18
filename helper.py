@@ -6,15 +6,24 @@ import json
 from datetime import datetime, timezone, timedelta
 import os
 from dotenv import load_dotenv
-            
+   
+# First try environment variables (for local development)         
 load_dotenv()
+email = os.getenv("ONEMAP_EMAIL")
+password = os.getenv("ONEMAP_PASSWORD")
+
+# If not found, read from HuggingFace secret files
+if not email and os.path.exists("/run/secrets/ONEMAP_EMAIL"):
+    with open("/run/secrets/ONEMAP_EMAIL", "r") as f:
+        email = f.read().strip()
+
+if not password and os.path.exists("/run/secrets/ONEMAP_PASSWORD"):
+    with open("/run/secrets/ONEMAP_PASSWORD", "r") as f:
+        password = f.read().strip()
+
 
 url = "https://www.onemap.gov.sg/api/auth/post/getToken"
             
-
-email = os.getenv('ONEMAP_EMAIL')
-password =  os.getenv('ONEMAP_EMAIL_PASSWORD')
-
 payload = {
     "email": email,
     "password": password
@@ -28,7 +37,6 @@ headers = {"Authorization": token}
 def get_token():
     return headers
 
-headers = {"Authorization": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo1ODM4LCJmb3JldmVyIjpmYWxzZSwiaXNzIjoiT25lTWFwIiwiaWF0IjoxNzYzMTMzMzg5LCJuYmYiOjE3NjMxMzMzODksImV4cCI6MTc2MzM5MjU4OSwianRpIjoiZWJkMmQyOTEtNzVlYS00Zjc1LWE0YTgtZDY4ZDU0Mzc0YjdkIn0.BK-F3sHEJ701hM-OrV5ekIS_cixetWg8WXudnxQkoeXwG9-POphJhMyL-JqeANpTf1py-zQzoa-kCljxOcSd3hWBrDxlqauzeABHTS4FHQhsLhUOVeofNn0sYYdk19tuKk4Ctq3BHUOGJylLJVPw3FY2UXzUTxaGDcVhadr9D78XA822XuuwjPPFmeiabrRuIu8L_709Wacy3LZxman0A9tJmVe46lNH-KdGbF30kKvPicntOIvhH-4PQ81ofaNYNbuaMZXJumyGqvUK-VmoNS7Qt5yZ712VgSMqSbjHOXvoW2CdrDKt07Y4x2Jhdj4Br1AYplyq7QT0zYttoa7o_Q"}
 # =========================
 # OneMap Functions
 # =========================
@@ -103,6 +111,7 @@ def route_instructions(legs):
 def get_route(start, end, routetype="pt", mode = 'TRANSIT'):
     """Get route using OneMap Routing API (walk or transit)."""
     print('get_route', start, end, routetype)
+    print('token', token)
     sgt = timezone(timedelta(hours=8))
     now = datetime.now(sgt)
 

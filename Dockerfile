@@ -7,6 +7,13 @@ WORKDIR /app
 # Ensure Python prints are unbuffered
 ENV PYTHONUNBUFFERED=1
 
+RUN --mount=type=secret,id=ONEMAP_EMAIL \
+    --mount=type=secret,id=ONEMAP_PASSWORD \
+    export ONEMAP_EMAIL="$(cat /run/secrets/ONEMAP_EMAIL)" && \
+    export ONEMAP_PASSWORD="$(cat /run/secrets/ONEMAP_PASSWORD)" && \
+    echo "Email secret loaded" && \
+    echo "Password secret loaded"
+
 # Copy and install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
