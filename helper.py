@@ -10,15 +10,15 @@ from dotenv import load_dotenv
 # First try environment variables (for local development)         
 load_dotenv()
 email = os.getenv("ONEMAP_EMAIL")
-password = os.getenv("ONEMAP_PASSWORD")
+password = os.getenv("ONEMAP_EMAIL_PASSWORD")
 
 # If not found, read from HuggingFace secret files
 if not email and os.path.exists("/run/secrets/ONEMAP_EMAIL"):
     with open("/run/secrets/ONEMAP_EMAIL", "r") as f:
         email = f.read().strip()
 
-if not password and os.path.exists("/run/secrets/ONEMAP_PASSWORD"):
-    with open("/run/secrets/ONEMAP_PASSWORD", "r") as f:
+if not password and os.path.exists("/run/secrets/ONEMAP_EMAIL_PASSWORD"):
+    with open("/run/secrets/ONEMAP_EMAIL_PASSWORD", "r") as f:
         password = f.read().strip()
 
 

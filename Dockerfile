@@ -8,9 +8,9 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1
 
 RUN --mount=type=secret,id=ONEMAP_EMAIL \
-    --mount=type=secret,id=ONEMAP_PASSWORD \
+    --mount=type=secret,id=ONEMAP_EMAIL_PASSWORD \
     export ONEMAP_EMAIL="$(cat /run/secrets/ONEMAP_EMAIL)" && \
-    export ONEMAP_PASSWORD="$(cat /run/secrets/ONEMAP_PASSWORD)" && \
+    export ONEMAP_EMAIL_PASSWORD="$(cat /run/secrets/ONEMAP_EMAIL_PASSWORD)" && \
     echo "Email secret loaded" && \
     echo "Password secret loaded"
 
