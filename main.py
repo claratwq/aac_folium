@@ -40,7 +40,31 @@ HTML_TEMPLATE = """
 def index():
     postal = request.form.get("postal")
     sg_center = [1.3521, 103.8198]
-    folium_map = folium.Map(location=sg_center, zoom_start=10, scrollWheelZoom=False)
+    folium_map = folium.Map(
+        location=sg_center,
+        zoom_start=10, 
+        scrollWheelZoom=False, 
+        dragging=True,
+        zoomControl=True)
+    
+    folium_map.get_root().html.add_child(folium.Element("""
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const map = document.querySelector(".leaflet-container");
+
+        // Disable Leaflet's default mobile touch grabbing
+        L.Map.addInitHook("addHandler", "touchZoom", null);
+        L.Map.addInitHook("addHandler", "tap", null);
+        L.Map.addInitHook("addHandler", "touch", null);
+
+        // Allow page to scroll even when touching map
+        map.addEventListener('touchmove', function(e) {
+            e.stopPropagation();  // prevent Leaflet from stealing the event
+        }, { passive: true });
+    });
+    </script>
+    """))
+    
     info_html = ""
     all_coords = []
 
