@@ -101,7 +101,7 @@ def index():
     document.addEventListener("DOMContentLoaded", function() {
         const map = document.querySelector(".leaflet-container");
         map.addEventListener('touchmove', function(e) {
-            e.stopPropagation();
+
         }, { passive: true });
     });
     </script>
