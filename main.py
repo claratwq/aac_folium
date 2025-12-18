@@ -90,7 +90,7 @@ def index():
     folium_map = folium.Map(
         location=sg_center,
         zoom_start=12,
-        scrollWheelZoom=False,
+        scrollWheelZoom=True,
         dragging=True,
         zoomControl=True
     )
