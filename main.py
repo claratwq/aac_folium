@@ -2,11 +2,12 @@ from flask import Flask, render_template_string, request
 import folium
 import pandas as pd
 from helper import get_token, haversine, get_coordinates_from_postal, get_route
-
+from folium.plugins import BeautifyIcon
 headers = get_token()
 print(headers)
 
-aac_df = pd.read_csv("active_ageing_centres_incremental_w_latlon.csv")
+aac_df = pd.read_csv("For_Clara_AAC_Jan26 3.csv")
+chp_df = aac_df[~(aac_df['Category']=='AAC')]
 
 app = Flask(__name__)
 
@@ -14,7 +15,7 @@ HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Active Ageing Centres Finder</title>
+    <title>CHP and AAC Finder</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <style>
@@ -71,7 +72,7 @@ HTML_TEMPLATE = """
                 value="{{ postal or '' }}"
                 style="padding:6px;"
             >
-            <button type="submit">Find AACs</button>
+            <button type="submit">Find nearby CHPs</button>
         </form>
     </div>
 
@@ -86,10 +87,10 @@ HTML_TEMPLATE = """
 def index():
     postal = request.form.get("postal")
 
-    sg_center = [1.3521, 103.8198]
+    WR_center = [1.345428, 103.7508]
     folium_map = folium.Map(
-        location=sg_center,
-        zoom_start=12,
+        location=WR_center,
+        zoom_start=13,
         scrollWheelZoom=True,
         dragging=True,
         zoomControl=True
@@ -107,94 +108,138 @@ def index():
     </script>
     """))
 
-    all_coords = []
+    # all_coords = []
+    
+    # Show all AACs
+    for _, row in aac_df.iterrows():
+        # 1. Start with the Bold Center Name
+        popup_html = f"<b>{row['Centre Name']}</b><br>"
+        
+        # 2. Add logic based on the Category
+        category = row["Category"]
+        
+        if category == "CHP":
+            marker_color = "#003D7C"
+            popup_html += f"<b>CHP Opening Hours:</b> {row['CHP Operating Hours']}"
+            
+        elif category == "AAC":
+            marker_color = "gray"
+            popup_html += f"<b>AAC Opening Hours:</b> {row['AAC Operating Hours']}"
+            
+        elif category == "AAC & CHP":
+            marker_color = "#003D7C"
+            popup_html += f"<b>CHP Opening Hours:</b> {row['CHP Operating Hours']}<br>"
+            popup_html += f"<b>AAC Opening Hours:</b> {row['AAC Operating Hours']}"
 
-    if not postal:
-        # Show all AACs only
-        for _, row in aac_df.iterrows():
-            folium.Marker(
+        # 3. Create the marker with the HTML string
+        folium.Marker(
                 location=[row["latitude"], row["longitude"]],
-                popup=row["Centre Name"]
+                popup=folium.Popup(popup_html, max_width=300),
+                icon=BeautifyIcon(
+                        icon_shape='marker',      # Creates the teardrop shape
+                        background_color=marker_color,
+                        border_color='white',     # White border makes it look sharp
+                        border_width=1,
+                        inner_icon_style="display:none;", # THIS FIXES THE WHITE DOT
+                        icon_size=[25, 25]        # THIS MAKES IT SMALLER (Standard is ~45)
+                    )
             ).add_to(folium_map)
-            all_coords.append([row["latitude"], row["longitude"]])
+        
+        # all_coords.append([row["latitude"], row["longitude"]])
 
-    else:
-        try:
-            # User location
-            user_lat, user_lon, addr = get_coordinates_from_postal(postal)
+    if postal:
+        
+        all_coords = [] # reset boundary for zoom
+        # User location
+        user_lat, user_lon, addr = get_coordinates_from_postal(postal)
 
-            folium.Marker(
-                location=[user_lat, user_lon],
-                popup="You are here",
-                icon=folium.Icon(
-                    color="orange",
-                    icon="home",
-                    prefix="fa"
-                )
-            ).add_to(folium_map)
+        folium.Marker(
+            location=[user_lat, user_lon],
+            popup="You are here",
+            icon=folium.Icon(
+                color="red",
+                icon="home",
+                prefix="fa"
+            )
+        ).add_to(folium_map)
 
-            all_coords.append([user_lat, user_lon])
+        all_coords.append([user_lat, user_lon])
 
-            # Compute distances
-            aac_df["dist_km"] = aac_df.apply(
-                lambda x: haversine(
-                    user_lat, user_lon,
-                    x["latitude"], x["longitude"]
-                ),
-                axis=1
+        # Compute distances
+        chp_df["dist_km"] = chp_df.apply(
+            lambda x: haversine(
+                user_lat, user_lon,
+                x["latitude"], x["longitude"]
+            ),
+            axis=1
+        )
+
+        nearest = chp_df.nsmallest(3, "dist_km")
+        colors = ["#F37021", "#003D7C", "#41B6E6"]
+
+        for i, (_, row) in enumerate(nearest.iterrows()):
+            route = get_route(
+                (user_lat, user_lon),
+                (row["latitude"], row["longitude"])
             )
 
-            nearest = aac_df.nsmallest(3, "dist_km")
-            colors = ["red", "blue", "green"]
-
-            for i, (_, row) in enumerate(nearest.iterrows()):
-                route = get_route(
-                    (user_lat, user_lon),
-                    (row["latitude"], row["longitude"])
-                )
-
-                # Draw route immediately
-                if route and route.get("coords"):
-                    folium.PolyLine(
-                        route["coords"],
-                        color=colors[i],
-                        weight=4,
-                        opacity=0.85
-                    ).add_to(folium_map)
-
-                    all_coords.extend(route["coords"])
-
-                # Popup content (shown only on click)
-                popup_html = f"""
-                <b>{row['Centre Name']}</b><br>
-                <b>Address:</b> {row['Address']}<br>
-                <b>Operating Hours:</b> {row['Operating Hours']}<br>
-                <b>Walk Distance:</b> {route['Walk distance']/1000:.2f} km<br>
-                <b>Time:</b> {route['time']/60:.1f} min<br><br>
-                <b>Directions:</b><br>
-                """
-
-                for step in route["Instructions"]:
-                    popup_html += f"- {step}<br>"
-
-                folium.Marker(
-                    location=[row["latitude"], row["longitude"]],
-                    popup=folium.Popup(popup_html, max_width=320),
-                    icon=folium.Icon(color=colors[i])
+            # Draw route 
+            if route and route.get("coords"):
+                folium.PolyLine(
+                    route["coords"],
+                    color=colors[i],
+                    weight=6,
+                    opacity=1
                 ).add_to(folium_map)
 
-                all_coords.append([row["latitude"], row["longitude"]])
+                all_coords.extend(route["coords"])
 
-            # Fit map bounds
-            if all_coords:
-                folium_map.fit_bounds(all_coords)
+            # Popup content (shown only on click)
+            
+            # 1. Determine the Hours section based on Category
+            category = row["Category"]
+            hours_html = ""
 
-        except Exception as e:
-            folium.Marker(
-                location=sg_center,
-                popup=f"Error: {str(e)}",
-                icon=folium.Icon(color="red")
-            ).add_to(folium_map)
+            if category == "CHP":
+                hours_html = f"<b>CHP Opening Hours:</b> {row['CHP Operating Hours']}<br>"
+            elif category == "AAC":
+                hours_html = f"<b>AAC Opening Hours:</b> {row['AAC Operating Hours']}<br>"
+            elif category == "AAC & CHP":
+                # Shows both if the category matches both
+                hours_html = (f"<b>CHP Opening Hours:</b> {row['CHP Operating Hours']}<br>"
+                            f"<b>AAC Opening Hours:</b> {row['AAC Operating Hours']}<br>")
+            popup_html = f"""
+            <b>{row['Centre Name']}</b><br>
+            <b>Address:</b> {row['Address']}<br>
+            {hours_html}
+            <b>Walk Distance:</b> {route['Walk distance']/1000:.2f} km<br>
+            <b>Time:</b> {route['time']/60:.1f} min<br><br>
+            <b>Directions:</b><br>
+            """
+
+            for step in route["Instructions"]:
+                popup_html += f"- {step}<br>"
+
+                folium.Marker(
+                        location=[row["latitude"], row["longitude"]],
+                        popup=folium.Popup(popup_html, max_width=320),
+                        icon=BeautifyIcon(
+                            icon='plus',
+                            icon_shape='marker',      # Teardrop shape
+                            background_color=colors[i], # Uses your HEX colors
+                            border_color='white',
+                            border_width=1,
+                            text_color='white',        # This creates the "white dot" effect
+                            icon_size=[25, 25],
+                            inner_icon_style='font-size:12px; margin-left: 0.5px;'# This makes the whole teardrop smaller
+                        )
+                    ).add_to(folium_map)
+
+            all_coords.append([row["latitude"], row["longitude"]])
+
+        # Fit map bounds
+        if all_coords:
+            folium_map.fit_bounds(all_coords)
 
     map_html = folium_map._repr_html_()
     return render_template_string(
