@@ -1,0 +1,6 @@
+# Specific file exclusions
+offline_routes.csv
+main.ipynb
+
+# Recommended: always exclude Jupyter checkpoints
+.ipynb_checkpoints/

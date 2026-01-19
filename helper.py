@@ -153,6 +153,13 @@ def get_route(start, end, routetype="pt", mode = 'TRANSIT'):
         "Instructions": instructions
     }
 
+def fetch_route_task(index, row, user_lat, user_lon, postal):
+    # Try offline first
+    route = get_route(
+    (user_lat, user_lon),
+    (row["latitude"], row["longitude"])
+        )
+    return index, row, route
 
 def decode_polyline(polyline_str):
     """Decode OneMap encoded polyline to list of [lat, lon]."""

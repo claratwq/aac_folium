@@ -1,13 +1,14 @@
 from flask import Flask, render_template_string, request, flash
 import folium
 import pandas as pd
-from helper import get_token, haversine, get_coordinates_from_postal, get_route
+from helper import get_token, haversine, get_coordinates_from_postal, get_route, fetch_route_task
 from folium.plugins import BeautifyIcon
+from concurrent.futures import ThreadPoolExecutor
 headers = get_token()
 print(headers)
 
 aac_df = pd.read_csv("For_Clara_AAC_Jan26 3.csv")
-chp_df = aac_df[~(aac_df['Category']=='AAC')]
+chp_df = aac_df[~(aac_df['Category']=='AAC')].copy()
 
 app = Flask(__name__)
 # CHANGE 1: You MUST have a secret key to use flashing
@@ -172,8 +173,11 @@ def index():
             if coord_result is None or not isinstance(coord_result, (tuple, list)):
                 flash(f"Postal code '{postal}' not found. Please try again.")
             else:
-                user_lat, user_lon, addr = get_coordinates_from_postal(postal)
-
+                # Use indexing to be safe
+                user_lat = coord_result[0]
+                user_lon = coord_result[1]
+                addr = coord_result[2] if len(coord_result) > 2 else "Unknown Address"
+                print(user_lat,user_lon ,addr)
             
             if user_lat is None or user_lon is None:
                     flash(f"Location coordinates not available for '{postal}'.")
@@ -200,15 +204,21 @@ def index():
                 )
 
                 nearest = chp_df.nsmallest(3, "dist_km")
+                nearest_list = list(nearest.iterrows())
                 colors = ["#F37021", "#003D7C", "#41B6E6"]
+                route_results = []
+                
+                with ThreadPoolExecutor(max_workers=3) as executor:
+                    # Map the tasks
+                    futures = [
+                        executor.submit(fetch_route_task, i, row, user_lat, user_lon, postal) 
+                        for i, (idx, row) in enumerate(nearest.iterrows())
+                    ]
+                    for future in futures:
+                        route_results.append(future.result())
 
-                for i, (_, row) in enumerate(nearest.iterrows()):
-                    route = get_route(
-                        (user_lat, user_lon),
-                        (row["latitude"], row["longitude"])
-                    )
-
-                    # Draw route 
+                # Draw route 
+                for i, row, route in route_results:
                     if isinstance(route, dict) and "coords" in route:
                         folium.PolyLine(
                             route["coords"],
@@ -216,7 +226,6 @@ def index():
                             weight=6,
                             opacity=1
                         ).add_to(folium_map)
-
                         all_coords.extend(route["coords"])
                     else:
                         # If get_route fails, we just don't draw that specific path
