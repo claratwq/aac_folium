@@ -4,7 +4,7 @@ import pandas as pd
 from helper import get_token, haversine, get_coordinates_from_postal, get_route, fetch_route_task, build_tracked_gmaps_link
 from folium.plugins import BeautifyIcon
 from concurrent.futures import ThreadPoolExecutor
-from urllib.parse import quote_plus   # CHANGE FOR CLICK TRACKING
+
 
 headers = get_token()
 print(headers)

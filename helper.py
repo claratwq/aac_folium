@@ -6,6 +6,7 @@ import json
 from datetime import datetime, timezone, timedelta
 import os
 from dotenv import load_dotenv
+from urllib.parse import quote_plus   # CHANGE FOR CLICK TRACKING
    
 # First try environment variables (for local development)         
 load_dotenv()
