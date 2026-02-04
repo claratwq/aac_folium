@@ -35,7 +35,7 @@ data = response.json()
 token = data.get("access_token")
 headers = {"Authorization": token}
 
-FOR_SG_BASE = "https://clara-twq-forsg_simulator.hf.space/track"  
+FOR_SG_BASE = "https://clara-twq-forsg_simulator.hf.space"  
 
 def get_token():
     return headers
