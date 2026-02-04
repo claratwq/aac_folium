@@ -136,6 +136,7 @@ def index():
 
         popup_html = f"""
         <b>{row['Centre Name']}</b><br>
+        <b>Address:</b> {row['Address']}<br>
         <a href="{tracked_gmaps_link}" target="_blank">
         📍 Open in Google Maps
         </a><br>
