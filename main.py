@@ -1,13 +1,16 @@
 from flask import Flask, render_template_string, request, flash
 import folium
 import pandas as pd
-from helper import get_token, haversine, get_coordinates_from_postal, get_route, fetch_route_task
+from helper import get_token, haversine, get_coordinates_from_postal, get_route, fetch_route_task, build_tracked_gmaps_link
 from folium.plugins import BeautifyIcon
 from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import quote_plus   # CHANGE FOR CLICK TRACKING
+
 headers = get_token()
 print(headers)
 
 aac_df = pd.read_csv("For_Clara_AAC_Jan26 3.csv")
+
 chp_df = aac_df[~(aac_df['Category']=='AAC')].copy()
 
 app = Flask(__name__)
@@ -125,8 +128,18 @@ def index():
     
     # Show all AACs
     for _, row in aac_df.iterrows():
+        
         # 1. Start with the Bold Center Name
-        popup_html = f"<b>{row['Centre Name']}</b><br>"
+        tracked_gmaps_link = build_tracked_gmaps_link(
+            row["latitude"], row["longitude"]
+        )  # CHANGE FOR CLICK TRACKING
+
+        popup_html = f"""
+        <b>{row['Centre Name']}</b><br>
+        <a href="{tracked_gmaps_link}" target="_blank">
+        📍 Open in Google Maps
+        </a><br>
+        """  # CHANGE FOR CLICK TRACKING
         
         # 2. Add logic based on the Category
         category = row["Category"]
@@ -245,14 +258,33 @@ def index():
                         # Shows both if the category matches both
                         hours_html = (f"<b>CHP Opening Hours:</b> {row['CHP Operating Hours']}<br>"
                                     f"<b>AAC Opening Hours:</b> {row['AAC Operating Hours']}<br>")
+                    tracked_gmaps_link = build_tracked_gmaps_link(
+                        row["latitude"], row["longitude"]
+                    )  # CHANGE FOR CLICK TRACKING
+
                     popup_html = f"""
                     <b>{row['Centre Name']}</b><br>
                     <b>Address:</b> {row['Address']}<br>
                     {hours_html}
                     <b>Walk Distance:</b> {route['Walk distance']/1000:.2f} km<br>
                     <b>Time:</b> {route['time']/60:.1f} min<br><br>
+
+                    <a href="{tracked_gmaps_link}" target="_blank"
+                    style="
+                        display:inline-block;
+                        padding:6px 10px;
+                        background:#1a73e8;
+                        color:white;
+                        text-decoration:none;
+                        border-radius:4px;
+                    ">
+                    📍 Open in Google Maps
+                    </a>
+                    <br><br>
+
                     <b>Directions:</b><br>
-                    """
+                    """  # CHANGE FOR CLICK TRACKING
+
 
                     for step in route["Instructions"]:
                         popup_html += f"- {step}<br>"

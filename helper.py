@@ -34,6 +34,8 @@ data = response.json()
 token = data.get("access_token")
 headers = {"Authorization": token}
 
+FOR_SG_BASE = "https://huggingface.co/spaces/clara-twq/forsg_simulator/track"  
+
 def get_token():
     return headers
 
@@ -183,3 +185,11 @@ def decode_polyline(polyline_str):
         lng += changes["lng"]
         coordinates.append([lat / 1e5, lng / 1e5])
     return coordinates
+
+def build_tracked_gmaps_link(lat, lng):
+    """
+    Builds a for.sg-tracked Google Maps link
+    """
+    gmaps_url = f"https://www.google.com/maps/search/?api=1&query={lat},{lng}"
+    return f"{FOR_SG_BASE}?url={quote_plus(gmaps_url)}"
+    # CHANGE FOR CLICK TRACKING
