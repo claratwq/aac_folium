@@ -265,22 +265,12 @@ def index():
                     popup_html = f"""
                     <b>{row['Centre Name']}</b><br>
                     <b>Address:</b> {row['Address']}<br>
+                    <a href="{tracked_gmaps_link}" target="_blank">
+                    📍 Open in Google Maps
+                    </a><br>
                     {hours_html}
                     <b>Walk Distance:</b> {route['Walk distance']/1000:.2f} km<br>
                     <b>Time:</b> {route['time']/60:.1f} min<br><br>
-
-                    <a href="{tracked_gmaps_link}" target="_blank"
-                    style="
-                        display:inline-block;
-                        padding:6px 10px;
-                        background:#1a73e8;
-                        color:white;
-                        text-decoration:none;
-                        border-radius:4px;
-                    ">
-                    📍 Open in Google Maps
-                    </a>
-                    <br><br>
 
                     <b>Directions:</b><br>
                     """  # CHANGE FOR CLICK TRACKING
