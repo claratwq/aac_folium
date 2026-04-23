@@ -29,16 +29,25 @@ chp_df = aac_df[~(aac_df['Category']=='AAC')].copy()
 app = Flask(__name__)
 
 # Allow specific origin to iframe you
+
+
 csp = {
     "default-src": "'self'",
-    "frame-ancestors": ["https://www.nuhs.edu.sg"]
+    "frame-ancestors": [
+        "https://www.nuhs.edu.sg",
+        "https://*.hf.space",
+        "https://huggingface.co"
+    ],
+    "script-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net", # Added for Leaflet/Folium scripts
+    "style-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+    "img-src": "'self' data: https://*.tile.openstreetmap.org https://cdn.jsdelivr.net"
 }
-
 
 Talisman(
     app,
     content_security_policy=csp,
-    frame_options=None   # disable old X-Frame-Options header
+    frame_options=None,
+    force_https=False # HF handles SSL; forcing it in the app can sometimes cause loops
 )
 
 # CHANGE 1: You MUST have a secret key to use flashing
@@ -368,5 +377,5 @@ def index():
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT"))
+    port = int(os.environ.get("PORT", 7860))
     app.run(host="0.0.0.0", port=port, debug=False)
