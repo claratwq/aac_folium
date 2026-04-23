@@ -31,24 +31,24 @@ app = Flask(__name__)
 # Allow specific origin to iframe you
 
 
-csp = {
-    "default-src": "'self'",
-    "frame-ancestors": [
-        "https://www.nuhs.edu.sg",
-        "https://*.hf.space",
-        "https://huggingface.co"
-    ],
-    "script-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net", # Added for Leaflet/Folium scripts
-    "style-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-    "img-src": "'self' data: https://*.tile.openstreetmap.org https://cdn.jsdelivr.net"
-}
+# csp = {
+#     "default-src": "'self'",
+#     "frame-ancestors": [
+#         "https://www.nuhs.edu.sg",
+#         "https://*.hf.space",
+#         "https://huggingface.co"
+#     ],
+#     "script-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net", # Added for Leaflet/Folium scripts
+#     "style-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+#     "img-src": "'self' data: https://*.tile.openstreetmap.org https://cdn.jsdelivr.net"
+# }
 
-Talisman(
-    app,
-    content_security_policy=csp,
-    frame_options=None,
-    force_https=False # HF handles SSL; forcing it in the app can sometimes cause loops
-)
+# Talisman(
+#     app,
+#     content_security_policy=csp,
+#     frame_options=None,
+#     force_https=False # HF handles SSL; forcing it in the app can sometimes cause loops
+# )
 
 # CHANGE 1: You MUST have a secret key to use flashing
 app.secret_key = "secret_key_123"
