@@ -7,11 +7,14 @@ from datetime import datetime, timezone, timedelta
 import os
 from dotenv import load_dotenv
 from urllib.parse import quote_plus   # CHANGE FOR CLICK TRACKING
-   
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+
 # First try environment variables (for local development)         
 load_dotenv()
 email = os.getenv("ONEMAP_EMAIL")
 password = os.getenv("ONEMAP_EMAIL_PASSWORD")
+googlekey = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
 
 # If not found, read from HuggingFace secret files
 if not email and os.path.exists("/run/secrets/ONEMAP_EMAIL"):
@@ -21,6 +24,16 @@ if not email and os.path.exists("/run/secrets/ONEMAP_EMAIL"):
 if not password and os.path.exists("/run/secrets/ONEMAP_EMAIL_PASSWORD"):
     with open("/run/secrets/ONEMAP_EMAIL_PASSWORD", "r") as f:
         password = f.read().strip()
+if not googlekey and os.path.exists("/run/secrets/GOOGLE_SERVICE_ACCOUNT_JSON"):
+    with open ("/run/secrets/GOOGLE_SERVICE_ACCOUNT_JSON","r") as f:
+        googlekey = f.read().strip()
+        
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]   
+info = json.loads(googlekey)
+creds = service_account.Credentials.from_service_account_info(
+    info,
+    scopes = SCOPES
+    )
 
 
 url = "https://www.onemap.gov.sg/api/auth/post/getToken"
@@ -38,6 +51,26 @@ headers = {"Authorization": token}
 
 def get_token():
     return headers
+
+def get_AAC_dataset(): 
+    
+    service = build("sheets", "v4", credentials=creds)
+
+    SPREADSHEET_ID = "1G-IP1cfut9OHjNK2EgeoC_rSn-izUT-xC7BBK_CUBZU"
+    RANGE_NAME = "CHP_dataset!A:I"
+
+    result = service.spreadsheets().values().get(
+        spreadsheetId=SPREADSHEET_ID,
+        range=RANGE_NAME
+    ).execute()
+
+    values = result.get("values", [])
+    
+    if not values:
+        return pd.DataFrame()
+
+    aac_df = pd.DataFrame(values[1:], columns=values[0])  # first row = headers
+    return aac_df
 
 # =========================
 # OneMap Functions

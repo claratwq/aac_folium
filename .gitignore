@@ -8,7 +8,12 @@ Huggingface_dockerfile.txt
 CHP Sites FOR.SG links.xlsx
 active_ageing_centres_incremental_w_latlon.csv
 AAC_locations.csv
+googlekey.json
+.zip
 
 
 # Recommended: always exclude Jupyter checkpoints
 .ipynb_checkpoints/
+.dist/
+.aac_directions/
+.aac_folium/

@@ -1,16 +1,12 @@
 from flask import Flask, render_template_string, request, flash
+from flask_talisman import Talisman
 import requests 
 import folium
 import pandas as pd
-from helper import get_token, haversine, get_coordinates_from_postal, get_route, fetch_route_task, build_tracked_gmaps_link
+from helper import get_AAC_dataset, get_token, haversine, get_coordinates_from_postal, get_route, fetch_route_task, build_tracked_gmaps_link
 from folium.plugins import BeautifyIcon
 from concurrent.futures import ThreadPoolExecutor
 import time
-
-
-headers = get_token()
-print(headers)
-
 
 # CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT2Ux0ODD4oTvD8dOWdoHWT7ltu_3-FQXNrzgAwlwYX_oHO2TZ3gISHktBkEWA2BgQhYriNmyTS-wRr/pub?gid=1189089449&single=true&output=csv'
 
@@ -21,11 +17,30 @@ print(headers)
 #     return resp.text
 
 # csv_text = fetch_csv(CSV_URL)
-aac_df = pd.read_csv("CHP_dataset.csv")
+#aac_df = pd.read_csv("CHP_dataset.csv")
+
+headers = get_token()
+print(headers)
+
+aac_df = get_AAC_dataset()
 
 chp_df = aac_df[~(aac_df['Category']=='AAC')].copy()
 
 app = Flask(__name__)
+
+# Allow specific origin to iframe you
+csp = {
+    "default-src": "'self'",
+    "frame-ancestors": ["https://www.nuhs.edu.sg"]
+}
+
+
+Talisman(
+    app,
+    content_security_policy=csp,
+    frame_options=None   # disable old X-Frame-Options header
+)
+
 # CHANGE 1: You MUST have a secret key to use flashing
 app.secret_key = "secret_key_123"
 
