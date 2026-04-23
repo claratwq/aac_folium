@@ -68,8 +68,9 @@ def get_AAC_dataset():
     
     if not values:
         return pd.DataFrame()
-
-    aac_df = pd.DataFrame(values[1:], columns=values[0])  # first row = headers
+    aac_df = pd.DataFrame(values[1:], columns=values[0])
+    aac_df['latitude'] = pd.to_numeric(aac_df['latitude'], errors='coerce')
+    aac_df['longitude'] = pd.to_numeric(aac_df['longitude'], errors='coerce')
     return aac_df
 
 # =========================
