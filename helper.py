@@ -35,21 +35,18 @@ creds = service_account.Credentials.from_service_account_info(
     scopes = SCOPES
     )
 
-
 url = "https://www.onemap.gov.sg/api/auth/post/getToken"
             
 payload = {
     "email": email,
     "password": password
 }
-            
-response = requests.request("POST", url, json=payload)
-data = response.json()
-token = data.get("access_token")
-headers = {"Authorization": token}
 
-
-def get_token():
+def get_token(payload=payload):
+    response = requests.request("POST", url, json=payload)
+    data = response.json()
+    token = data.get("access_token")
+    headers = {"Authorization": token}
     return headers
 
 def get_AAC_dataset(): 
@@ -86,6 +83,7 @@ def haversine(lat1, lon1, lat2, lon2):
 
 
 def get_coordinates_from_postal(postal_code):
+    headers = get_token()
     """Get lat/lon from a Singapore postal code using OneMap."""
     url = f"https://www.onemap.gov.sg/api/common/elastic/search?searchVal={postal_code}&returnGeom=Y&getAddrDetails=Y&pageNum=1"
     r = requests.get(url, headers = headers).json()
@@ -147,7 +145,7 @@ def route_instructions(legs):
 def get_route(start, end, routetype="pt", mode = 'TRANSIT'):
     """Get route using OneMap Routing API (walk or transit)."""
     print('get_route', start, end, routetype)
-    print('token', token)
+    #print('token', token)
     sgt = timezone(timedelta(hours=8))
     now = datetime.now(sgt)
 
@@ -162,6 +160,7 @@ def get_route(start, end, routetype="pt", mode = 'TRANSIT'):
     )
     
     print('url', url)
+    headers = get_token()
     r = requests.get(url, headers = headers)
     if r.status_code != 200:
         print ('status code in getroute', r.status_code)

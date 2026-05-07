@@ -20,7 +20,7 @@ import os
 # csv_text = fetch_csv(CSV_URL)
 #aac_df = pd.read_csv("CHP_dataset.csv")
 
-headers = get_token()
+# headers = get_token()
 
 aac_df = get_AAC_dataset()
 
