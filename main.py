@@ -3,7 +3,7 @@ from flask_talisman import Talisman
 import requests 
 import folium
 import pandas as pd
-from helper import get_AAC_dataset, get_token, haversine, get_coordinates_from_postal, get_route, fetch_route_task, build_tracked_gmaps_link
+from helper import update_and_get_dataset, haversine, get_coordinates_from_postal, fetch_route_task, build_tracked_gmaps_link
 from folium.plugins import BeautifyIcon
 from concurrent.futures import ThreadPoolExecutor
 import time
@@ -22,7 +22,7 @@ import os
 
 # headers = get_token()
 
-aac_df = get_AAC_dataset()
+aac_df = update_and_get_dataset()
 
 chp_df = aac_df[~(aac_df['Category']=='AAC')].copy()
 

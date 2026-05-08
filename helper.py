@@ -28,7 +28,8 @@ if not googlekey and os.path.exists("/run/secrets/GOOGLE_SERVICE_ACCOUNT_JSON"):
     with open ("/run/secrets/GOOGLE_SERVICE_ACCOUNT_JSON","r") as f:
         googlekey = f.read().strip()
         
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]   
+ 
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 info = json.loads(googlekey)
 creds = service_account.Credentials.from_service_account_info(
     info,
@@ -49,12 +50,17 @@ def get_token(payload=payload):
     headers = {"Authorization": token}
     return headers
 
-def get_AAC_dataset(): 
+def update_and_get_dataset(creds= creds):
+    service = build("sheets", "v4", credentials=creds)
+    
+    # 1. Fetch current data using your existing reader logic
     
     service = build("sheets", "v4", credentials=creds)
 
     SPREADSHEET_ID = "1G-IP1cfut9OHjNK2EgeoC_rSn-izUT-xC7BBK_CUBZU"
+    # SPREADSHEET_ID = "1kO-eLcBN3tYDwBTRKbAOr54ExJNVdBGO2TgRiHcLIMQ" --testing spreadsheet
     RANGE_NAME = "CHP_dataset!A:I"
+    SHEET_NAME = "CHP_dataset"
 
     result = service.spreadsheets().values().get(
         spreadsheetId=SPREADSHEET_ID,
@@ -68,7 +74,52 @@ def get_AAC_dataset():
     aac_df = pd.DataFrame(values[1:], columns=values[0])
     aac_df['latitude'] = pd.to_numeric(aac_df['latitude'], errors='coerce')
     aac_df['longitude'] = pd.to_numeric(aac_df['longitude'], errors='coerce')
-    return aac_df
+
+    # 2. Identify rows with missing Lat/Lon
+    missing_mask = aac_df['latitude'].isna() | aac_df['longitude'].isna()
+    missing_df = aac_df[missing_mask]
+
+    if missing_df.empty:
+        return aac_df  # Return immediately if no work is needed
+
+    # 3. Map column letters (A=0, B=1, etc.)
+    cols = list(aac_df.columns)
+    lat_idx = cols.index('latitude')
+    lon_idx = cols.index('longitude')
+    lat_col_letter = chr(65 + lat_idx)
+    lon_col_letter = chr(65 + lon_idx)
+
+    updates = []
+
+    # 4. Iterate only through missing rows
+    for index, row in missing_df.iterrows():
+        try:
+            # Get data from OneMap
+            lat, lon, addr = get_coordinates_from_postal(row['Postal Code'])
+            
+            # Update the local DataFrame (so it's ready to be returned)
+            aac_df.at[index, 'latitude'] = lat
+            aac_df.at[index, 'longitude'] = lon
+            
+            # Prepare the Google Sheets updates
+            row_num = index + 2
+            updates.append({'range': f"{SHEET_NAME}!{lat_col_letter}{row_num}", 'values': [[lat]]})
+            updates.append({'range': f"{SHEET_NAME}!{lon_col_letter}{row_num}", 'values': [[lon]]})
+            
+            print(f"Updated {row['Postal Code']} at Row {row_num}")
+            
+        except Exception as e:
+            print(f"Skipping postal {row.get('Postal Code')}: {e}")
+
+    # 5. Push changes to Google Sheets in one batch
+    if updates:
+        service.spreadsheets().values().batchUpdate(
+            spreadsheetId=SPREADSHEET_ID,
+            body={'valueInputOption': 'USER_ENTERED', 'data': updates}
+        ).execute()
+
+    return aac_df # This now contains the new lat/lon values
+
 
 # =========================
 # OneMap Functions
