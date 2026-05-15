@@ -1,5 +1,5 @@
 from flask import Flask, render_template_string, request, flash
-from flask_talisman import Talisman
+#from flask_talisman import Talisman
 import requests 
 import folium
 import pandas as pd

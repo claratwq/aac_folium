@@ -164,26 +164,21 @@ def route_instructions(legs):
         elif mode == "BUS":
             route = leg.get("route", "")
 
-            # OneMap often returns numStops = 0 → so we calculate it manually
-            intermediate = leg.get("intermediateStops", [])
-            num_stops = len(intermediate)
-
             from_stop = leg.get("from", {}).get("name", "the bus stop")
             to_stop = leg.get("to", {}).get("name", "the next stop")
 
             steps.append(
-                f"Take Bus {route} from {from_stop} and ride for {num_stops} stops to {to_stop}."
+                f"Take Bus {route} from {from_stop} to {to_stop}."
             )
 
         # MRT / SUBWAY
         elif mode in ["SUBWAY", "TRAIN"]:
             route = leg.get("route", "")
-            num_stops = leg.get("numStops", 0)
             from_stop = leg.get("from", {}).get("name", "the station")
             to_stop = leg.get("to", {}).get("name", "your stop")
 
             steps.append(
-                f"Take the {route} line from {from_stop} for {num_stops} stops to {to_stop}."
+                f"Take the {route} line from {from_stop} to {to_stop}."
             )
 
         # UNKNOWN MODE
