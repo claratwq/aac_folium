@@ -74,7 +74,7 @@ def update_and_get_dataset(creds= creds):
     aac_df = pd.DataFrame(values[1:], columns=values[0])
     aac_df['latitude'] = pd.to_numeric(aac_df['latitude'], errors='coerce')
     aac_df['longitude'] = pd.to_numeric(aac_df['longitude'], errors='coerce')
-
+    
     # 2. Identify rows with missing Lat/Lon
     missing_mask = aac_df['latitude'].isna() | aac_df['longitude'].isna()
     missing_df = aac_df[missing_mask]
@@ -96,15 +96,16 @@ def update_and_get_dataset(creds= creds):
         try:
             # Get data from OneMap
             lat, lon, addr = get_coordinates_from_postal(row['Postal Code'])
-            
+            rounded_lat = round(lat, 6)
+            rounded_lon = round(lon, 6)
             # Update the local DataFrame (so it's ready to be returned)
-            aac_df.at[index, 'latitude'] = lat
-            aac_df.at[index, 'longitude'] = lon
+            aac_df.at[index, 'latitude'] = rounded_lat
+            aac_df.at[index, 'longitude'] = rounded_lon
             
             # Prepare the Google Sheets updates
             row_num = index + 2
-            updates.append({'range': f"{SHEET_NAME}!{lat_col_letter}{row_num}", 'values': [[lat]]})
-            updates.append({'range': f"{SHEET_NAME}!{lon_col_letter}{row_num}", 'values': [[lon]]})
+            updates.append({'range': f"{SHEET_NAME}!{lat_col_letter}{row_num}", 'values': [[rounded_lat]]})
+            updates.append({'range': f"{SHEET_NAME}!{lon_col_letter}{row_num}", 'values': [[rounded_lon]]})
             
             print(f"Updated {row['Postal Code']} at Row {row_num}")
             
@@ -188,45 +189,79 @@ def route_instructions(legs):
     return steps
 
 
-def get_route(start, end, routetype="pt", mode = 'TRANSIT'):
+def get_route(start, end, routetype="pt", mode='TRANSIT'):
     """Get route using OneMap Routing API (walk or transit)."""
     print('get_route', start, end, routetype)
-    #print('token', token)
+    
+    # 1. Handle identical points immediately
+    if round(start[0], 6) == round(end[0], 6) and round(start[1], 6) == round(end[1], 6):
+        print("Start and End are identical. Returning zero route metrics.")
+        return {
+            "coords": None,
+            "time": 0,
+            "Walk distance": 0,
+            "Instructions": ["Same Location"]
+        }
+    
+    headers = get_token()
     sgt = timezone(timedelta(hours=8))
     now = datetime.now(sgt)
-
     date_format = now.strftime('%m-%d-%Y')
-    time_raw = now.strftime('%H:%M:%S')
     
+    # 2. Build URL with both start and end rounded to 6dp
     url = (
         f"https://www.onemap.gov.sg/api/public/routingsvc/route?"
-        f"start={start[0]},{start[1]}&end={end[0]},{end[1]}"
-        f"&date={date_format}&time={time_raw}"
+        f"start={round(start[0],6)},{round(start[1],6)}&end={round(end[0],6)},{round(end[1],6)}"
+        f"&date={date_format}&time=09:00:00"
         f"&routeType={routetype}&mode={mode}"
     )
     
     print('url', url)
-    headers = get_token()
-    r = requests.get(url, headers = headers)
-    if r.status_code != 200:
-        print ('status code in getroute', r.status_code)
+    
+    try:
+        r = requests.get(url, headers=headers, timeout=10)
+    except Exception as e:
+        print(f"Primary connection failure: {e}")
+        return None
+        
+    # 3. FIXED: Properly check 'r' and safely fall back to walking
+    if r is not None and r.status_code == 404 and routetype == "pt":
+        print("No public transit found (points might be too close). Trying walking route...")
+        url_walk = (
+            f"https://www.onemap.gov.sg/api/public/routingsvc/route?"
+            f"start={round(start[0],6)},{round(start[1],6)}&end={round(end[0],6)},{round(end[1],6)}"
+            f"&routeType=walk"
+        )
+        try:
+            r = requests.get(url_walk, headers=headers, timeout=10)
+        except Exception as e:
+            print(f"Fallback walking connection failure: {e}")
+            return None
+        
+    # 4. Final safety check on status codes
+    if r is None or r.status_code != 200:
+        status_log = r.status_code if r else "No Connection"
+        print('status code in getroute', status_log)
         return None
     
+    # Process successful data
     data = r.json()
-    
     plan = data.get("plan")
-    #print(json.dumps(plan))
+    
     if not plan or not plan.get("itineraries"):
         return None
+        
     itinerary = plan["itineraries"][0]  # Take the first suggested route
     legs = itinerary.get("legs", [])
     coords = []
+    
     for leg in legs:
         poly = leg.get("legGeometry", {}).get("points")
         if poly:
             coords.extend(decode_polyline(poly))
-    #print (json.dumps(itinerary, indent = 2))
+            
     instructions = route_instructions(legs)
+    
     return {
         "coords": coords,
         "time": itinerary.get("duration", 0),

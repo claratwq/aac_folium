@@ -279,7 +279,8 @@ def index():
 
                 # Draw route 
                 for i, row, route in route_results:
-                    if isinstance(route, dict) and "coords" in route:
+                    # FIX: Explicitly ensure route["coords"] exists and is not None
+                    if isinstance(route, dict) and route.get("coords") is not None:
                         folium.PolyLine(
                             route["coords"],
                             color=colors[i],
@@ -288,8 +289,9 @@ def index():
                         ).add_to(folium_map)
                         all_coords.extend(route["coords"])
                     else:
-                        # If get_route fails, we just don't draw that specific path
-                        print(f"Skipping route for {row['Centre Name']} - no path found.")
+                        # This will now catch both literal None returns AND dictionary None returns
+                        centre_name = row.get('Centre Name', 'Unknown Centre')
+                        print(f"Skipping route drawing for {centre_name} - no valid coordinate path found.")
 
                     # Popup content (shown only on click)
                     
