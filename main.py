@@ -135,6 +135,10 @@ HTML_TEMPLATE = """
 </html>
 """
 
+@app.route("/health", methods=["GET"])
+def health_check():
+    return {"status": "healthy"}, 200
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     postal = request.form.get("postal")
