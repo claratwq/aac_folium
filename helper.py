@@ -43,12 +43,38 @@ payload = {
     "password": password
 }
 
-def get_token(payload=payload):
-    response = requests.request("POST", url, json=payload)
-    data = response.json()
-    token = data.get("access_token")
-    headers = {"Authorization": token}
-    return headers
+# def get_token(payload=payload):
+#     response = requests.request("POST", url, json=payload)
+#     data = response.json()
+#     token = data.get("access_token")
+#     headers = {"Authorization": token}
+#     return headers
+
+# In helper.py
+
+def get_token(payload=None):
+    # Ensure env values are cleanly stripped of whitespace/newlines
+    clean_email = email.strip() if email else ""
+    clean_password = password.strip() if password else ""
+    
+    auth_payload = payload or {
+        "email": clean_email,
+        "password": clean_password
+    }
+    
+    try:
+        response = requests.post(url, json=auth_payload, timeout=5)
+        data = response.json()
+        token = data.get("access_token")
+        
+        if not token:
+            print("OneMap Auth Failed:", data)
+            raise ValueError("Failed to retrieve OneMap access token.")
+            
+        return {"Authorization": token}
+    except Exception as e:
+        print(f"Token Error: {e}")
+        raise e
 
 def update_and_get_dataset(creds= creds):
     service = build("sheets", "v4", credentials=creds)
@@ -269,13 +295,13 @@ def get_route(start, end, routetype="pt", mode='TRANSIT'):
         "Instructions": instructions
     }
 
-def fetch_route_task(index, row, user_lat, user_lon, postal):
-    # Try offline first
-    route = get_route(
-    (user_lat, user_lon),
-    (row["latitude"], row["longitude"])
-        )
-    return index, row, route
+# def fetch_route_task(index, row, user_lat, user_lon, postal):
+#     # Try offline first
+#     route = get_route(
+#     (user_lat, user_lon),
+#     (row["latitude"], row["longitude"])
+#         )
+#     return index, row, route
 
 def decode_polyline(polyline_str):
     """Decode OneMap encoded polyline to list of [lat, lon]."""

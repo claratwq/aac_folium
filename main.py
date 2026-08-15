@@ -3,9 +3,9 @@ from flask import Flask, render_template_string, request, flash
 import requests 
 import folium
 import pandas as pd
-from helper import update_and_get_dataset, haversine, get_coordinates_from_postal, fetch_route_task, build_tracked_gmaps_link
+from helper import update_and_get_dataset, haversine, get_coordinates_from_postal, get_route, build_tracked_gmaps_link
 from folium.plugins import BeautifyIcon
-from concurrent.futures import ThreadPoolExecutor
+#from concurrent.futures import ThreadPoolExecutor
 import time
 import os
 
@@ -27,28 +27,6 @@ aac_df = update_and_get_dataset()
 chp_df = aac_df[~(aac_df['Category']=='AAC')].copy()
 
 app = Flask(__name__)
-
-# Allow specific origin to iframe you
-
-
-# csp = {
-#     "default-src": "'self'",
-#     "frame-ancestors": [
-#         "https://www.nuhs.edu.sg",
-#         "https://*.hf.space",
-#         "https://huggingface.co"
-#     ],
-#     "script-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net", # Added for Leaflet/Folium scripts
-#     "style-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-#     "img-src": "'self' data: https://*.tile.openstreetmap.org https://cdn.jsdelivr.net"
-# }
-
-# Talisman(
-#     app,
-#     content_security_policy=csp,
-#     frame_options=None,
-#     force_https=False # HF handles SSL; forcing it in the app can sometimes cause loops
-# )
 
 # CHANGE 1: You MUST have a secret key to use flashing
 app.secret_key = "secret_key_123"
@@ -268,19 +246,31 @@ def index():
                 )
 
                 nearest = chp_df.nsmallest(3, "dist_km")
-                nearest_list = list(nearest.iterrows())
+                #nearest_list = list(nearest.iterrows())
                 colors = ["#F37021", "#003D7C", "#41B6E6"]
                 route_results = []
                 
-                with ThreadPoolExecutor(max_workers=3) as executor:
-                    # Map the tasks
-                    futures = [
-                        executor.submit(fetch_route_task, i, row, user_lat, user_lon, postal) 
-                        for i, (idx, row) in enumerate(nearest.iterrows())
-                    ]
-                    for future in futures:
-                        route_results.append(future.result())
-
+                # with ThreadPoolExecutor(max_workers=3) as executor:
+                #     # Map the tasks
+                #     futures = [
+                #         executor.submit(fetch_route_task, i, row, user_lat, user_lon, postal) 
+                #         for i, (idx, row) in enumerate(nearest.iterrows())
+                #     ]
+                #     for future in futures:
+                #         route_results.append(future.result())
+                
+                # Fall back to for loop because Vercel microVM fails with multithreading
+                for i, (idx, row) in enumerate(nearest.iterrows()):
+                    try:
+                        route = get_route(
+                            (user_lat, user_lon),
+                            (row["latitude"], row["longitude"])
+                        )
+                        route_results.append((i, row, route))
+                    except Exception as route_err:
+                        print(f"Error fetching route for row {idx}: {route_err}")
+                
+                
                 # Draw route 
                 for i, row, route in route_results:
                     # FIX: Explicitly ensure route["coords"] exists and is not None

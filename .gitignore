@@ -17,3 +17,4 @@ googlekey.json
 .dist/
 .aac_directions/
 .aac_folium/
+.env
