@@ -183,6 +183,7 @@ def index():
                     folium.Marker(
                         location=[user_lat, user_lon],
                         popup="You are here",
+                        z_index_offset=100,
                         icon=folium.Icon(color="red", icon="home", prefix="fa")
                     ).add_to(folium_map)
 
@@ -268,6 +269,7 @@ def index():
                         folium.Marker(
                             location=[row["latitude"], row["longitude"]],
                             popup=folium.Popup(popup_html, max_width=320),
+                            z_index_offset=1000,
                             icon=BeautifyIcon(
                                 icon='plus',
                                 icon_shape='marker',
