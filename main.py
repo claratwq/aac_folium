@@ -222,24 +222,27 @@ def index():
 
                     # Draw routes & render markers
                     for i, row, route in route_results:
+                        # 1. Draw PolyLine only if coordinates exist and start/end are not identical
                         if isinstance(route, dict) and route.get("coords"):
-                            folium.PolyLine(
-                                route["coords"],
-                                color=colors[i],
-                                weight=6,
-                                opacity=1
-                            ).add_to(folium_map)
+                            # Avoid drawing 0-length polylines if coords only has 1 unique point
+                            if len(route["coords"]) > 1:
+                                folium.PolyLine(
+                                    route["coords"],
+                                    color=colors[i],
+                                    weight=6,
+                                    opacity=1
+                                ).add_to(folium_map)
                             all_coords.extend(route["coords"])
 
                         category = row["Category"]
                         hours_html = ""
                         if category == "CHP":
-                            hours_html = f"<b>CHP Opening Hours:</b> {row['CHP Operating Hours']}<br>"
+                            hours_html = f"<b>CHP Operating Hours:</b> {row['CHP Operating Hours']}<br>"
                         elif category == "AAC":
-                            hours_html = f"<b>AAC Opening Hours:</b> {row['AAC Operating Hours']}<br>"
+                            hours_html = f"<b>AAC Operating Hours:</b> {row['AAC Operating Hours']}<br>"
                         elif category == "AAC & CHP":
-                            hours_html = (f"<b>CHP Opening Hours:</b> {row['CHP Operating Hours']}<br>"
-                                          f"<b>AAC Opening Hours:</b> {row['AAC Operating Hours']}<br>")
+                            hours_html = (f"<b>CHP Operating Hours:</b> {row['CHP Operating Hours']}<br>"
+                                        f"<b>AAC Operating Hours:</b> {row['AAC Operating Hours']}<br>")
 
                         tracked_gmaps_link = build_tracked_gmaps_link(row["latitude"], row["longitude"])
                         gmaps_url = row['Forsg'] if pd.notna(row['Forsg']) else tracked_gmaps_link
@@ -257,10 +260,11 @@ def index():
                         <b>Directions:</b><br>
                         """
 
-                        instructions = route.get("Instructions", ["Route directions unavailable."]) if route else []
+                        instructions = route.get("Instructions", ["At same location."]) if route else []
                         for step in instructions:
                             popup_html += f"- {step}<br>"
 
+                        # Always drop the destination marker (even if dist == 0)
                         folium.Marker(
                             location=[row["latitude"], row["longitude"]],
                             popup=folium.Popup(popup_html, max_width=320),
@@ -279,7 +283,13 @@ def index():
                         all_coords.append([row["latitude"], row["longitude"]])
 
                     if all_coords:
-                        folium_map.fit_bounds(all_coords)
+                        # Deduplicate coordinates before fitting bounds to avoid zero-swatch Leaflet errors
+                        unique_coords = [list(x) for x in set(tuple(c) for c in all_coords)]
+                        if len(unique_coords) == 1:
+                            folium_map.location = unique_coords[0]
+                            folium_map.zoom_start = 16
+                        else:
+                            folium_map.fit_bounds(unique_coords)
 
         except Exception as e:
             flash(f"Error: Could not find location for '{postal}'. Please try another postal code.")
