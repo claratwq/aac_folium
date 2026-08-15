@@ -284,9 +284,22 @@ def index():
 
                         all_coords.append([row["latitude"], row["longitude"]])
 
+                    #if all_coords:
+                        # # Deduplicate coordinates before fitting bounds to avoid zero-swatch Leaflet errors
+                        # unique_coords = [list(x) for x in set(tuple(c) for c in all_coords)]
+                        # if len(unique_coords) == 1:
+                        #     folium_map.location = unique_coords[0]
+                        #     folium_map.zoom_start = 16
+                        # else:
+                        #     folium_map.fit_bounds(unique_coords)
                     if all_coords:
-                        # Deduplicate coordinates before fitting bounds to avoid zero-swatch Leaflet errors
-                        unique_coords = [list(x) for x in set(tuple(c) for c in all_coords)]
+                    # Safe deduplication using standard list comprehension
+                        unique_coords = []
+                        for c in all_coords:
+                            coord_pair = [float(c[0]), float(c[1])]
+                            if coord_pair not in unique_coords:
+                                unique_coords.append(coord_pair)
+
                         if len(unique_coords) == 1:
                             folium_map.location = unique_coords[0]
                             folium_map.zoom_start = 16
